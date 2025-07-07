@@ -4,7 +4,6 @@ torch
 huggingface_hub
 sentence-transformers
 langchain
-langchain-community==0.0.30
 faiss-cpu
 pandas
 sentencepiece
