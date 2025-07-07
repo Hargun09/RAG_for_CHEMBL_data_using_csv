@@ -1,7 +1,10 @@
 streamlit
 transformers
 torch
+huggingface_hub
 sentence-transformers
 langchain
-huggingface_hub
+langchain-community
 faiss-cpu
+pandas
+sentencepiece
