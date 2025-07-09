@@ -38,10 +38,11 @@ import torch
 # ========== Hugging Face Login ==========
 try:
     HUGGINGFACE_TOKEN = st.secrets["HUGGINGFACE_TOKEN"]
-    login(token=HUGGINGFACE_TOKEN, new_session=True)
+    login(token=HUGGINGFACE_TOKEN)
     st.success("🔐 Hugging Face login successful.")
-except KeyError:
-    st.warning("⚠️ Hugging Face token not found. Proceeding without login.")
+except Exception as e:
+    st.warning("⚠️ Hugging Face login failed. Proceeding without it.")
+    print("Login error:", e)
 
 # ========== Load Model ==========
 st.write("⚙️ Loading model and tokenizer...")
