@@ -6,4 +6,3 @@ sentence-transformers
 langchain
 faiss-cpu
 pandas
-sentencepiece
