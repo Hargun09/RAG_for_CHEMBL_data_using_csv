@@ -23,7 +23,7 @@ st.title("🧬 ChEMBL Chatbot: Diseases of the Female Reproductive Tract")
 st.write("Enter your biomedical question below:")
 
 # ========== Libraries ==========
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, pipeline
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, pipeline
 from huggingface_hub import login
 import torch
 import pandas as pd
@@ -36,43 +36,36 @@ from langchain.schema.document import Document
 import zipfile
 
 # ========== Hugging Face Login ==========
-HUGGINGFACE_TOKEN = st.secrets["HUGGINGFACE_TOKEN"]
-login(token=HUGGINGFACE_TOKEN, new_session=True)
-
+try:
+    HUGGINGFACE_TOKEN = st.secrets["HUGGINGFACE_TOKEN"]
+    login(token=HUGGINGFACE_TOKEN, new_session=True)
+    st.success("🔐 Hugging Face login successful.")
+except KeyError:
+    st.warning("⚠️ Hugging Face token not found in secrets. Proceeding without login.")
 
 # ========== Load Model ==========
 st.write("⚙️ Loading model and tokenizer...")
-model_id = "tiiuae/falcon-rw-1b"
-
-bnb_config = BitsAndBytesConfig(
-    load_in_4bit=True,
-    bnb_4bit_use_double_quant=True,
-    bnb_4bit_quant_type="nf4",
-    bnb_4bit_compute_dtype=torch.float16,
-)
+model_id = "google/flan-t5-base"
 
 tokenizer = AutoTokenizer.from_pretrained(model_id)
-model = AutoModelForCausalLM.from_pretrained(
+model = AutoModelForSeq2SeqLM.from_pretrained(
     model_id,
     trust_remote_code=True,
-    quantization_config=bnb_config,
     device_map="auto"
 )
 
 pipe = pipeline(
     model=model,
     tokenizer=tokenizer,
-    task="text-generation",
-    eos_token_id=tokenizer.eos_token_id,
-    pad_token_id=tokenizer.eos_token_id,
-    repetition_penalty=1.1,
+    task="text2text-generation",
     return_full_text=False,
     max_new_tokens=300,
     temperature=0.3,
     do_sample=True,
 )
+
 mistral_llm = HuggingFacePipeline(pipeline=pipe)
-st.write("✅ Model loaded.")
+st.success("✅ Model loaded.")
 
 # ========== Unzip Data ==========
 with zipfile.ZipFile("data.zip", "r") as zip_ref:
@@ -102,8 +95,13 @@ embeddings = HuggingFaceEmbeddings(model_name='sentence-transformers/all-mpnet-b
 db = FAISS.from_documents(chunks, embedding=embeddings)
 retriever = db.as_retriever(search_type="similarity", search_kwargs={'k': 4})
 
-qa_chain = ConversationalRetrievalChain.from_llm(mistral_llm, retriever=retriever, return_source_documents=True)
-st.write("✅ Knowledge base ready.")
+qa_chain = ConversationalRetrievalChain.from_llm(
+    mistral_llm,
+    retriever=retriever,
+    return_source_documents=True
+)
+
+st.success("✅ Knowledge base ready.")
 
 # ========== QA Interface ==========
 if "chat_history" not in st.session_state:
@@ -113,5 +111,9 @@ query = st.text_input("🔎 Ask a biomedical question:")
 if query:
     result = qa_chain.invoke({'question': query, 'chat_history': st.session_state.chat_history})
     answer = result['answer']
-    st.markdown(f"**💬 Answer:** {answer}")
     st.session_state.chat_history.append((query, answer))
+
+# Show full chat history
+for i, (q, a) in enumerate(st.session_state.chat_history):
+    st.markdown(f"**🧠 Q{i+1}:** {q}")
+    st.markdown(f"**💬 A{i+1}:** {a}")
