@@ -23,17 +23,17 @@ st.title("🧬 ChEMBL Chatbot: Diseases of the Female Reproductive Tract")
 st.write("Enter your biomedical question below:")
 
 # ========== Libraries ==========
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, pipeline
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from huggingface_hub import login
-import torch
 import pandas as pd
-from langchain.llms import HuggingFacePipeline
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.chains import ConversationalRetrievalChain
 from langchain.schema.document import Document
+from langchain.llms.base import LLM
 import zipfile
+import torch
 
 # ========== Hugging Face Login ==========
 try:
@@ -41,26 +41,29 @@ try:
     login(token=HUGGINGFACE_TOKEN, new_session=True)
     st.success("🔐 Hugging Face login successful.")
 except KeyError:
-    st.warning("⚠️ Hugging Face token not found in secrets. Proceeding without login.")
+    st.warning("⚠️ Hugging Face token not found. Proceeding without login.")
 
 # ========== Load Model ==========
 st.write("⚙️ Loading model and tokenizer...")
-
-model_id = "google/flan-t5-small"
+model_id = "google/flan-t5-small"  # safe for CPU
 
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 model = AutoModelForSeq2SeqLM.from_pretrained(model_id)
 
-pipe = pipeline(
-    model=model,
-    tokenizer=tokenizer,
-    return_full_text=False,
-    max_new_tokens=300,
-    temperature=0.3,
-    do_sample=True,
-)
+def query_model(prompt):
+    inputs = tokenizer(prompt, return_tensors="pt", padding=True, truncation=True).to(model.device)
+    outputs = model.generate(**inputs, max_new_tokens=300, do_sample=True, temperature=0.3)
+    return tokenizer.decode(outputs[0], skip_special_tokens=True)
 
-llm = HuggingFacePipeline(pipeline=pipe)
+class SimpleLLM(LLM):
+    @property
+    def _llm_type(self):
+        return "transformer"
+
+    def _call(self, prompt, stop=None):
+        return query_model(prompt)
+
+llm = SimpleLLM()
 st.success("✅ Model loaded.")
 
 # ========== Unzip Data ==========
@@ -91,12 +94,7 @@ embeddings = HuggingFaceEmbeddings(model_name='sentence-transformers/all-mpnet-b
 db = FAISS.from_documents(chunks, embedding=embeddings)
 retriever = db.as_retriever(search_type="similarity", search_kwargs={'k': 4})
 
-qa_chain = ConversationalRetrievalChain.from_llm(
-    llm,
-    retriever=retriever,
-    return_source_documents=True
-)
-
+qa_chain = ConversationalRetrievalChain.from_llm(llm, retriever=retriever, return_source_documents=True)
 st.success("✅ Knowledge base ready.")
 
 # ========== QA Interface ==========
@@ -107,9 +105,5 @@ query = st.text_input("🔎 Ask a biomedical question:")
 if query:
     result = qa_chain.invoke({'question': query, 'chat_history': st.session_state.chat_history})
     answer = result['answer']
+    st.markdown(f"**💬 Answer:** {answer}")
     st.session_state.chat_history.append((query, answer))
-
-# Show chat history
-for i, (q, a) in enumerate(st.session_state.chat_history):
-    st.markdown(f"**🧠 Q{i+1}:** {q}")
-    st.markdown(f"**💬 A{i+1}:** {a}")
