@@ -39,6 +39,7 @@ import zipfile
 HUGGINGFACE_TOKEN = st.secrets["HUGGINGFACE_TOKEN"]
 login(token=HUGGINGFACE_TOKEN, new_session=True)
 
+
 # ========== Load Model ==========
 st.write("⚙️ Loading model and tokenizer...")
 model_id = "tiiuae/falcon-rw-1b"
