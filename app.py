@@ -88,14 +88,29 @@ for ind in df.index:
     text += sentence
 
 documents = Document(page_content=text, metadata={"source": "chembl_gene_disease"})
+st.write("⚙️ documented")
+
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=0, separators=["#####"])
+st.write("⚙️ splitted...")
+
 chunks = text_splitter.split_documents([documents])
 
+st.write("⚙️ chunked...")
+
+
 embeddings = HuggingFaceEmbeddings(model_name='sentence-transformers/all-mpnet-base-v2')
+st.write("⚙️ embedded...")
+
 db = FAISS.from_documents(chunks, embedding=embeddings)
+st.write("⚙️ faised...")
+
 retriever = db.as_retriever(search_type="similarity", search_kwargs={'k': 4})
+st.write("⚙️ retrieved")
+
 
 qa_chain = ConversationalRetrievalChain.from_llm(llm, retriever=retriever, return_source_documents=True)
+st.write("⚙️qa chained")
+
 st.success("✅ Knowledge base ready.")
 
 # ========== QA Interface ==========
