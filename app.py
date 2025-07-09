@@ -45,7 +45,7 @@ except KeyError:
 
 # ========== Load Model ==========
 st.write("⚙️ Loading model and tokenizer...")
-model_id = "google/flan-t5-base"
+model_id = "google/flan-t5-small"  # ⚠️ flan-t5-base gives error on CPU
 
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 model = AutoModelForSeq2SeqLM.from_pretrained(model_id)
