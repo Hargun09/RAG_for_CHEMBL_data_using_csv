@@ -48,11 +48,7 @@ st.write("⚙️ Loading model and tokenizer...")
 model_id = "google/flan-t5-base"
 
 tokenizer = AutoTokenizer.from_pretrained(model_id)
-model = AutoModelForSeq2SeqLM.from_pretrained(
-    model_id,
-    trust_remote_code=True,
-    device_map="auto"
-)
+model = AutoModelForSeq2SeqLM.from_pretrained(model_id)
 
 pipe = pipeline(
     model=model,
@@ -64,7 +60,7 @@ pipe = pipeline(
     do_sample=True,
 )
 
-mistral_llm = HuggingFacePipeline(pipeline=pipe)
+llm = HuggingFacePipeline(pipeline=pipe)
 st.success("✅ Model loaded.")
 
 # ========== Unzip Data ==========
@@ -96,7 +92,7 @@ db = FAISS.from_documents(chunks, embedding=embeddings)
 retriever = db.as_retriever(search_type="similarity", search_kwargs={'k': 4})
 
 qa_chain = ConversationalRetrievalChain.from_llm(
-    mistral_llm,
+    llm,
     retriever=retriever,
     return_source_documents=True
 )
@@ -113,7 +109,7 @@ if query:
     answer = result['answer']
     st.session_state.chat_history.append((query, answer))
 
-# Show full chat history
+# Show chat history
 for i, (q, a) in enumerate(st.session_state.chat_history):
     st.markdown(f"**🧠 Q{i+1}:** {q}")
     st.markdown(f"**💬 A{i+1}:** {a}")
