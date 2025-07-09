@@ -45,7 +45,8 @@ except KeyError:
 
 # ========== Load Model ==========
 st.write("⚙️ Loading model and tokenizer...")
-model_id = "google/flan-t5-small"  # ⚠️ flan-t5-base gives error on CPU
+
+model_id = "google/flan-t5-small"
 
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 model = AutoModelForSeq2SeqLM.from_pretrained(model_id)
@@ -53,7 +54,6 @@ model = AutoModelForSeq2SeqLM.from_pretrained(model_id)
 pipe = pipeline(
     model=model,
     tokenizer=tokenizer,
-    task="text2text-generation",
     return_full_text=False,
     max_new_tokens=300,
     temperature=0.3,
