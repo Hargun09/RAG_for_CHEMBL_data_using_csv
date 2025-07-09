@@ -4,5 +4,7 @@ torch
 huggingface_hub
 sentence-transformers
 langchain
+langchain-community
 faiss-cpu
 pandas
+bitsandbytes; platform_system != "Windows"
