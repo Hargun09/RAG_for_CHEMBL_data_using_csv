@@ -62,11 +62,11 @@ except Exception as e:
 
 from langchain_community.llms import HuggingFaceHub
 
-llm = HuggingFaceHub(
-    repo_id="google/flan-t5-large",
-    huggingfacehub_api_token=st.secrets["HUGGINGFACE_TOKEN"],
-    model_kwargs={"temperature": 0.5, "max_length": 512}
-)
+from transformers import pipeline
+from langchain_community.llms import HuggingFacePipeline
+
+pipe = pipeline("text2text-generation", model="google/flan-t5-large")
+llm = HuggingFacePipeline(pipeline=pipe)
 
 
 
