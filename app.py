@@ -35,11 +35,11 @@ except Exception as e:
     print("Token error:", e)
 
 # ========== Unzip index.zip ==========
-if not os.path.exists("index/index.faiss") or not os.path.exists("index/index.pkl"):
+if not os.path.exists("index_pkl/index.faiss") or not os.path.exists("index_pkl/index.pkl"):
     if os.path.exists("index.zip"):
         st.write("📦 Extracting `index.zip`...")
         with zipfile.ZipFile("index.zip", "r") as zip_ref:
-            zip_ref.extractall(".")
+            zip_ref.extractall("index_pkl")
         st.success("✅ Extracted `index.zip`.")
     else:
         st.warning("⚠️ `index.zip` not found. Will attempt to rebuild FAISS from CSV.")
@@ -60,11 +60,11 @@ def rebuild_faiss():
     documents = [Document(page_content=row["text"]) for _, row in df.iterrows()]
     embeddings = HuggingFaceEmbeddings(model_name='sentence-transformers/all-mpnet-base-v2')
     db = FAISS.from_documents(documents, embeddings)
-    db.save_local("index", index_name="index")
+    db.save_local("index_pkl", index_name="index")
     st.success("✅ FAISS index rebuilt and saved.")
 
 # ========== Validate Index Presence ==========
-if not (os.path.exists("index/index.faiss") and os.path.exists("index/index.pkl")):
+if not (os.path.exists("index_pkl/index.faiss") and os.path.exists("index_pkl/index.pkl")):
     rebuild_faiss()
 
 # ========== Load Chain ==========
@@ -75,7 +75,7 @@ def load_chain():
         embedding = HuggingFaceEmbeddings(model_name='sentence-transformers/all-mpnet-base-v2')
         st.write("✅ Embedding model loaded.")
 
-        db = FAISS.load_local("index", embeddings=embedding, index_name="index")
+        db = FAISS.load_local("index_pkl", embeddings=embedding, index_name="index")
         st.write("✅ FAISS index loaded.")
 
         llm = HuggingFaceHub(
