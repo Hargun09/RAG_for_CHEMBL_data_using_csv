@@ -34,7 +34,7 @@ except Exception as e:
     st.warning("⚠️ Hugging Face API token not found.")
     print("Token error:", e)
 
-# ========== Unzip and Prepare Index Folder ==========
+# ========== Unzip ZIP files ==========
 if not os.path.exists("index"):
     os.makedirs("index", exist_ok=True)
 
@@ -52,39 +52,56 @@ if not os.path.exists("index"):
 
 # ========== Rebuild FAISS if index.faiss is Missing ==========
 def rebuild_faiss():
-    st.warning("⚠️ `index.faiss` not found. Rebuilding FAISS index from CSV...")
+    st.warning("⚠️ `index.faiss` not found. Rebuilding from CSV...")
 
-    df = pd.read_csv("final_final.csv")  # Use your CSV filename here
-    documents = [Document(page_content=row["text"]) for _, row in df.iterrows()]  # Replace 'text' with your actual column name
+    if not os.path.exists("final_final.csv"):
+        st.error("❌ CSV file `final_final.csv` not found. Upload it or place it in the root directory.")
+        st.stop()
 
+    df = pd.read_csv("final_final.csv")
+
+    if "text" not in df.columns:
+        st.error("❌ CSV must have a `text` column.")
+        st.stop()
+
+    documents = [Document(page_content=row["text"]) for _, row in df.iterrows()]
     embeddings = HuggingFaceEmbeddings(model_name='sentence-transformers/all-mpnet-base-v2')
     db = FAISS.from_documents(documents, embeddings)
 
     db.save_local("index", index_name="index")
-    st.success("✅ FAISS index rebuilt and saved.")
+    st.success("✅ FAISS index rebuilt.")
 
 if not os.path.exists("index/index.faiss"):
     rebuild_faiss()
 
-# ========== Load FAISS and LLM ==========
-@st.cache_resource
+# ========== Load Chain ==========
 def load_chain():
-    st.write("⚙️ Loading FAISS index and LLM...")
+    st.write("🚧 Loading retrieval QA chain...")
 
-    embedding = HuggingFaceEmbeddings(model_name='sentence-transformers/all-mpnet-base-v2')
-    db = FAISS.load_local("index", embeddings=embedding, index_name="index")
+    try:
+        embedding = HuggingFaceEmbeddings(model_name='sentence-transformers/all-mpnet-base-v2')
+        st.write("✅ Embedding model loaded.")
 
-    llm = HuggingFaceHub(
-        repo_id="mistralai/Mistral-7B-Instruct-v0.1",
-        model_kwargs={"temperature": 0.5, "max_new_tokens": 512}
-    )
+        db = FAISS.load_local("index", embeddings=embedding, index_name="index")
+        st.write("✅ FAISS index loaded.")
 
-    qa_chain = RetrievalQA.from_chain_type(
-        llm=llm,
-        retriever=db.as_retriever(search_kwargs={"k": 4}),
-        return_source_documents=True
-    )
-    return qa_chain
+        llm = HuggingFaceHub(
+            repo_id="mistralai/Mistral-7B-Instruct-v0.1",
+            model_kwargs={"temperature": 0.5, "max_new_tokens": 512}
+        )
+        st.write("✅ LLM loaded.")
+
+        qa_chain = RetrievalQA.from_chain_type(
+            llm=llm,
+            retriever=db.as_retriever(search_kwargs={"k": 4}),
+            return_source_documents=True
+        )
+        st.write("✅ RetrievalQA chain ready.")
+        return qa_chain
+
+    except Exception as e:
+        st.error(f"❌ Error while loading chain: {e}")
+        raise e
 
 qa_chain = load_chain()
 
@@ -95,13 +112,16 @@ if "chat_history" not in st.session_state:
 query = st.text_input("🔎 Enter your question:")
 if query:
     with st.spinner("🤖 Generating answer..."):
-        result = qa_chain(query)
-        answer = result["result"]
-        sources = result["source_documents"]
+        try:
+            result = qa_chain(query)
+            answer = result["result"]
+            sources = result["source_documents"]
 
-        st.markdown(f"**💬 Answer:** {answer}")
-        st.session_state.chat_history.append((query, answer))
+            st.markdown(f"**💬 Answer:** {answer}")
+            st.session_state.chat_history.append((query, answer))
 
-        with st.expander("📚 Source Information"):
-            for i, doc in enumerate(sources, 1):
-                st.markdown(f"**Source {i}:** {doc.page_content}")
+            with st.expander("📚 Source Information"):
+                for i, doc in enumerate(sources, 1):
+                    st.markdown(f"**Source {i}:** {doc.page_content}")
+        except Exception as e:
+            st.error(f"❌ Failed to generate answer: {e}")
