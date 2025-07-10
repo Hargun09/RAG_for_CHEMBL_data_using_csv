@@ -3,6 +3,8 @@ from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.llms import HuggingFaceHub
 from langchain.chains import RetrievalQA
+from langchain.docstore.document import Document
+import pandas as pd
 import zipfile
 import os
 import shutil
@@ -32,32 +34,39 @@ except Exception as e:
     st.warning("⚠️ Hugging Face API token not found.")
     print("Token error:", e)
 
-# ========== Unzip index.zip and pkl_file.zip ==========
+# ========== Unzip and Prepare Index Folder ==========
 if not os.path.exists("index"):
     os.makedirs("index", exist_ok=True)
 
-    # Unzip index.zip
     if os.path.exists("index.zip"):
         st.write("📦 Extracting `index.zip`...")
         with zipfile.ZipFile("index.zip", "r") as zip_ref:
             zip_ref.extractall("index")
         st.success("✅ Extracted `index.zip`.")
 
-    # Unzip pkl_file.zip
     if os.path.exists("pkl_file.zip"):
         st.write("📦 Extracting `pkl_file.zip`...")
         with zipfile.ZipFile("pkl_file.zip", "r") as zip_ref:
             zip_ref.extractall("index")
         st.success("✅ Extracted `pkl_file.zip`.")
 
-    # Rename pkl_file to index.pkl
-    original_pkl = os.path.join("index", "pkl_file")
-    target_pkl = os.path.join("index", "index.pkl")
-    if os.path.exists(original_pkl):
-        shutil.move(original_pkl, target_pkl)
-        st.write("🔁 Renamed `pkl_file` to `index.pkl`")
+# ========== Rebuild FAISS if index.faiss is Missing ==========
+def rebuild_faiss():
+    st.warning("⚠️ `index.faiss` not found. Rebuilding FAISS index from CSV...")
 
-# ========== Load FAISS & LLM ==========
+    df = pd.read_csv("final_final.csv")  # Use your CSV filename here
+    documents = [Document(page_content=row["text"]) for _, row in df.iterrows()]  # Replace 'text' with your actual column name
+
+    embeddings = HuggingFaceEmbeddings(model_name='sentence-transformers/all-mpnet-base-v2')
+    db = FAISS.from_documents(documents, embeddings)
+
+    db.save_local("index", index_name="index")
+    st.success("✅ FAISS index rebuilt and saved.")
+
+if not os.path.exists("index/index.faiss"):
+    rebuild_faiss()
+
+# ========== Load FAISS and LLM ==========
 @st.cache_resource
 def load_chain():
     st.write("⚙️ Loading FAISS index and LLM...")
@@ -75,7 +84,6 @@ def load_chain():
         retriever=db.as_retriever(search_kwargs={"k": 4}),
         return_source_documents=True
     )
-
     return qa_chain
 
 qa_chain = load_chain()
