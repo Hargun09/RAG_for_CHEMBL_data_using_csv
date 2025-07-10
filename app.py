@@ -18,30 +18,22 @@ embedding = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L
 # ================== PATHS ==================
 index_dir = "index_pkl"
 index_faiss = os.path.join(index_dir, "index.faiss")
-index_pkl = os.path.join(index_dir, "index_pkl.pkl")  # ✅ this is your actual .pkl filename
+index_pkl = os.path.join(index_dir, "index_pkl.pkl")
 
 # ================== UNZIP INDEX IF NEEDED ==================
 if not os.path.exists(index_faiss) or not os.path.exists(index_pkl):
-    st.warning("🔍 FAISS index files not found. Trying to extract `index.zip`...")
-    
     if os.path.exists("index.zip"):
-        st.info("📦 Extracting `index.zip`...")
+        st.write("📦 Extracting `index.zip`...")
         with zipfile.ZipFile("index.zip", "r") as zip_ref:
             zip_ref.extractall(index_dir)
         st.success("✅ Extracted `index.zip`.")
     else:
-        st.error("❌ `index.zip` not found. Cannot continue without FAISS index.")
+        st.error("❌ `index.zip` not found. Cannot continue.")
         st.stop()
-else:
-    st.success("✅ FAISS index files found.")
-
-# ================== DEBUG FILE CHECK ==================
-st.write("📁 Files in `index_pkl`:", os.listdir(index_dir))
 
 # ================== LOAD VECTORSTORE ==================
 try:
-    db = FAISS.load_local(index_dir, embeddings=embedding, index_name="index_pkl")  # ✅ match index_pkl.pkl
-    st.success("✅ FAISS vectorstore loaded.")
+    db = FAISS.load_local(index_dir, embeddings=embedding, index_name="index_pkl")
 except Exception as e:
     st.error(f"❌ Failed to load FAISS index: {e}")
     st.stop()
@@ -50,9 +42,8 @@ except Exception as e:
 try:
     HUGGINGFACE_TOKEN = st.secrets["HUGGINGFACE_TOKEN"]
     login(token=HUGGINGFACE_TOKEN)
-    st.success("🔐 Hugging Face login successful.")
 except Exception as e:
-    st.warning("⚠️ Hugging Face login failed. Proceeding without it.")
+    st.warning("⚠️ Hugging Face login failed.")
     print("Login error:", e)
 
 # ================== LLM ==================
@@ -73,5 +64,5 @@ query = st.text_input("🔎 Ask a biomedical question:")
 if query:
     with st.spinner("🤖 Generating answer..."):
         result = qa_chain.run(query)
-        st.success("✅ Answer:")
+        st.write("✅ Answer:")
         st.write(result)
