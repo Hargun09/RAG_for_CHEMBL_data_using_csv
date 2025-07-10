@@ -18,10 +18,11 @@ embedding = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L
 # ================== PATHS ==================
 index_dir = "index_pkl"
 index_faiss = os.path.join(index_dir, "index.faiss")
-index_pkl = os.path.join(index_dir, "index_pkl.pkl")
+index_pkl_old = os.path.join(index_dir, "index_pkl.pkl")
+index_pkl = os.path.join(index_dir, "index_pkl")  # <- Correct format
 
 # ================== UNZIP INDEX IF NEEDED ==================
-if not os.path.exists(index_faiss) or not os.path.exists(index_pkl):
+if not os.path.exists(index_faiss) or not os.path.exists(index_pkl_old):
     if os.path.exists("index.zip"):
         st.write("📦 Extracting `index.zip`...")
         with zipfile.ZipFile("index.zip", "r") as zip_ref:
@@ -31,9 +32,18 @@ if not os.path.exists(index_faiss) or not os.path.exists(index_pkl):
         st.error("❌ `index.zip` not found. Cannot continue.")
         st.stop()
 
+# ================== RENAME `.pkl` TO REMOVE EXTENSION IF NEEDED ==================
+if os.path.exists(index_pkl_old) and not os.path.exists(index_pkl):
+    os.rename(index_pkl_old, index_pkl)
+    st.info("ℹ️ Renamed `index_pkl.pkl` to `index_pkl` for FAISS compatibility.")
+
+# ================== DEBUG FILE CHECK ==================
+st.write("📂 index_dir contents:", os.listdir(index_dir))
+
 # ================== LOAD VECTORSTORE ==================
 try:
     db = FAISS.load_local(index_dir, embeddings=embedding, index_name="index_pkl")
+    st.success("✅ FAISS vectorstore loaded.")
 except Exception as e:
     st.error(f"❌ Failed to load FAISS index: {e}")
     st.stop()
