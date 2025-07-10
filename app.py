@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import zipfile
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.llms import HuggingFaceHub
@@ -14,22 +15,23 @@ st.markdown("Ask me anything about ChEMBL-indexed biomedical data!")
 # ================== EMBEDDING MODEL ==================
 embedding = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
-# ================== PATHS ==================
-index_dir = "index_pkl"
-index_faiss = os.path.join(index_dir, "index.faiss")
-index_pkl = os.path.join(index_dir, "index_pkl.pkl")
-
-# ================== VERIFY FILES EXIST ==================
-if not os.path.exists(index_faiss) or not os.path.exists(index_pkl):
-    st.error("❌ Required FAISS index files not found in `index_pkl/`.")
-    st.stop()
+# ================== CHECK & UNZIP IF NEEDED ==================
+if not all(os.path.exists(f) for f in ["index_pkl/index.faiss", "index_pkl/index_pkl.pkl"]):
+    if os.path.exists("index.zip"):
+        st.write("📦 Extracting `index.zip`...")
+        with zipfile.ZipFile("index.zip", "r") as zip_ref:
+            zip_ref.extractall()
+        st.success("✅ Extracted `index.zip`.")
+    else:
+        st.error("❌ `index.zip` not found. Cannot continue.")
+        st.stop()
 
 # ================== LOAD VECTORSTORE ==================
 try:
     db = FAISS.load_local(
-        folder_path=index_dir,
+        folder_path="index_pkl",
         embeddings=embedding,
-        index_name="index_pkl.pkl"  # must match actual .pkl filename
+        index_name="index_pkl.pkl"  # <- exact file name
     )
     st.success("✅ FAISS vectorstore loaded.")
 except Exception as e:
