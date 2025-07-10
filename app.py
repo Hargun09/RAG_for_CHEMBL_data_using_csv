@@ -46,7 +46,8 @@ except Exception as e:
 
 # ================== LOAD FLAN LLM ==================
 try:
-    pipe = pipeline("text2text-generation", model="google/flan-t5-base", max_length=512)
+    pipe = pipeline("text2text-generation", model="sshleifer/tiny-t5", max_length=256)
+
     st.success("✅ LLM pipeline loaded.")
 except Exception as e:
     st.error("❌ Failed to load FLAN-T5 model.")
