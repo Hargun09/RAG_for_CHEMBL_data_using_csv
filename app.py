@@ -1,12 +1,11 @@
 import streamlit as st
 import os
 import zipfile
+import traceback
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
-from langchain.chains import RetrievalQA
 from transformers import pipeline
 from langchain_community.llms import HuggingFacePipeline
-import traceback
 
 # ================== PAGE CONFIG ==================
 st.set_page_config(page_title="🧪 ChEMBL QA Chatbot", page_icon="🧬")
@@ -49,29 +48,36 @@ except Exception as e:
 
 # ================== LOAD LLM PIPELINE (NO TOKEN NEEDED) ==================
 try:
-    pipe = pipeline("text2text-generation", model="google/flan-t5-base", max_length=512)
+    pipe = pipeline("text2text-generation", model="google/flan-t5-base", max_length=512, do_sample=False)
     llm = HuggingFacePipeline(pipeline=pipe)
+    st.success("✅ LLM pipeline loaded.")
 except Exception as e:
     st.error("❌ Could not load the LLM pipeline.")
     st.exception(e)
     st.stop()
 
-# ================== RETRIEVAL CHAIN ==================
-qa_chain = RetrievalQA.from_chain_type(
-    llm=llm,
-    chain_type="stuff",
-    retriever=db.as_retriever()
-)
-
-# ================== USER QUERY ==================
+# ================== USER QUERY WITHOUT RetrievalQA ==================
 query = st.text_input("🔎 Ask a biomedical question:")
 
 if query:
     try:
-        with st.spinner("🤖 Generating answer..."):
-            result = qa_chain.run(query)
+        with st.spinner("🤖 Retrieving context and generating answer..."):
+            # Step 1: Retrieve relevant documents
+            docs = db.similarity_search(query, k=3)
+            if not docs:
+                st.warning("⚠️ No relevant documents found.")
+                st.stop()
+
+            # Step 2: Build prompt from documents
+            context = "\n\n".join([doc.page_content for doc in docs])
+            prompt = f"Context:\n{context}\n\nQuestion: {query}\nAnswer:"
+
+            # Step 3: Call the model
+            response = pipe(prompt, max_length=512)
+            answer = response[0]['generated_text'] if response else "⚠️ No answer generated."
+
             st.success("✅ Answer:")
-            st.write(result)
+            st.write(answer)
     except Exception as e:
-        st.error("❌ An error occurred while generating the answer.")
+        st.error("❌ An error occurred:")
         st.code(traceback.format_exc())
