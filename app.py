@@ -65,7 +65,7 @@ from langchain_community.llms import HuggingFaceHub
 from transformers import pipeline
 from langchain_community.llms import HuggingFacePipeline
 
-pipe = pipeline("text2text-generation", model="google/flan-t5-large")
+pipe = pipeline("text2text-generation", model="google/flan-t5-base")
 llm = HuggingFacePipeline(pipeline=pipe)
 
 
