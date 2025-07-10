@@ -16,7 +16,7 @@ st.markdown("Ask me anything about ChEMBL-indexed biomedical data!")
 embedding = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
 # ================== CHECK & UNZIP IF NEEDED ==================
-if not all(os.path.exists(f) for f in ["index_pkl/index.faiss", "index_pkl/index_pkl.pkl"]):
+if not all(os.path.exists(f) for f in ["index_pkl/index.faiss", "index_pkl/index.pkl"]):
     if os.path.exists("index_pkl.zip"):
         st.write("📦 Extracting `index_pkl.zip`...")
         with zipfile.ZipFile("index_pkl.zip", "r") as zip_ref:
@@ -31,8 +31,8 @@ try:
     db = FAISS.load_local(
         folder_path="index_pkl",
         embeddings=embedding,
-        index_name="index_pkl.pkl",
-        allow_dangerous_deserialization=True  # ⚠️ Use with caution!
+        index_name="index",  # ✅ Now matches: index.faiss + index.pkl
+        allow_dangerous_deserialization=True
     )
     st.success("✅ FAISS vectorstore loaded.")
 except Exception as e:
