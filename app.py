@@ -1,6 +1,12 @@
 import streamlit as st
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.vectorstores import FAISS
+from langchain.llms import HuggingFaceHub
+from langchain.chains import RetrievalQA
+import os
 
-# ========== Custom CSS ==========
+# ========== Page Config & Styling ==========
+st.set_page_config(page_title="🧬 ChEMBL QA", layout="centered")
 st.markdown("""
     <style>
         .stApp {
@@ -10,116 +16,59 @@ st.markdown("""
             font-family: 'Times New Roman', Times, serif;
             color: #1a1a1a;
         }
-        .css-10trblm {
-            font-size: 36px !important;
-            font-weight: bold !important;
-            color: #4a148c !important;
-        }
     </style>
 """, unsafe_allow_html=True)
 
-# ========== UI ==========
-st.title("🧬 ChEMBL Chatbot: Diseases of the Female Reproductive Tract")
-st.write("Enter your biomedical question below:")
+st.title("🧬 ChEMBL QA Chatbot: Female Reproductive Tract Diseases")
+st.write("Ask a biomedical question related to compounds, targets, or diseases:")
 
-# ========== Libraries ==========
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-from huggingface_hub import login
-import pandas as pd
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.vectorstores import FAISS
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.chains import ConversationalRetrievalChain
-from langchain.schema.document import Document
-from langchain.llms.base import LLM
-import zipfile
-import torch
-
-# ========== Hugging Face Login ==========
+# ========== Hugging Face Token ==========
 try:
-    HUGGINGFACE_TOKEN = st.secrets["HUGGINGFACE_TOKEN"]
-    login(token=HUGGINGFACE_TOKEN)
-    st.success("🔐 Hugging Face login successful.")
+    os.environ["HUGGINGFACEHUB_API_TOKEN"] = st.secrets["HUGGINGFACEHUB_API_TOKEN"]
+    st.success("🔐 Hugging Face API token loaded.")
 except Exception as e:
-    st.warning("⚠️ Hugging Face login failed. Proceeding without it.")
-    print("Login error:", e)
+    st.warning("⚠️ Hugging Face API token not found.")
+    print("Token error:", e)
 
-# ========== Load Model ==========
-st.write("⚙️ Loading model and tokenizer...")
-model_id = "google/flan-t5-small"  # safe for CPU
+# ========== Load FAISS & LLM ==========
+@st.cache_resource
+def load_chain():
+    st.write("⚙️ Loading FAISS index and LLM...")
+    
+    embedding = HuggingFaceEmbeddings(model_name='sentence-transformers/all-mpnet-base-v2')
+    db = FAISS.load_local("faiss_index", embeddings=embedding, index_name="index")
 
-tokenizer = AutoTokenizer.from_pretrained(model_id)
-model = AutoModelForSeq2SeqLM.from_pretrained(model_id)
-
-def query_model(prompt):
-    inputs = tokenizer(prompt, return_tensors="pt", padding=True, truncation=True).to(model.device)
-    outputs = model.generate(**inputs, max_new_tokens=300, do_sample=True, temperature=0.3)
-    return tokenizer.decode(outputs[0], skip_special_tokens=True)
-
-class SimpleLLM(LLM):
-    @property
-    def _llm_type(self):
-        return "transformer"
-
-    def _call(self, prompt, stop=None):
-        return query_model(prompt)
-
-llm = SimpleLLM()
-st.success("✅ Model loaded.")
-
-# ========== Unzip Data ==========
-with zipfile.ZipFile("data.zip", "r") as zip_ref:
-    zip_ref.extractall("data")
-
-# ========== Load & Process ChEMBL CSV ==========
-st.write("📄 Processing ChEMBL data...")
-df = pd.read_csv('data/final_final.csv')
-
-text = ""
-for ind in df.index:
-    row = df.loc[ind]
-    sentence = (
-        f"The compound {row['compound_name']} (ChEMBL ID: {row['molecule_chembl_id']}) "
-        f"is associated with the disease {row['disease_name']} (MONDO ID: {row['mondo_id']}, "
-        f"EFO ID: {row['efo_id']}, MeSH ID: {row['mesh_id']}). "
-        f"It targets proteins with ChEMBL IDs: {row['target_chembl_ids']} "
-        f"and UniProt IDs: {row['uniprot_ids']}.\n#####\n"
+    llm = HuggingFaceHub(
+        repo_id="mistralai/Mistral-7B-Instruct-v0.1",
+        model_kwargs={"temperature": 0.5, "max_new_tokens": 512}
     )
-    text += sentence
 
-documents = Document(page_content=text, metadata={"source": "chembl_gene_disease"})
-st.write("⚙️ documented")
+    qa_chain = RetrievalQA.from_chain_type(
+        llm=llm,
+        retriever=db.as_retriever(search_kwargs={"k": 4}),
+        return_source_documents=True
+    )
 
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=0, separators=["#####"])
-st.write("⚙️ splitted...")
+    return qa_chain
 
-chunks = text_splitter.split_documents([documents])
+qa_chain = load_chain()
 
-st.write("⚙️ chunked...")
-
-
-embeddings = HuggingFaceEmbeddings(model_name='sentence-transformers/all-mpnet-base-v2')
-st.write("⚙️ embedded...")
-
-db = FAISS.from_documents(chunks, embedding=embeddings)
-st.write("⚙️ faised...")
-
-retriever = db.as_retriever(search_type="similarity", search_kwargs={'k': 4})
-st.write("⚙️ retrieved")
-
-
-qa_chain = ConversationalRetrievalChain.from_llm(llm, retriever=retriever, return_source_documents=True)
-st.write("⚙️qa chained")
-
-st.success("✅ Knowledge base ready.")
-
-# ========== QA Interface ==========
+# ========== User Input ==========
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-query = st.text_input("🔎 Ask a biomedical question:")
+query = st.text_input("🔎 Enter your question:")
 if query:
-    result = qa_chain.invoke({'question': query, 'chat_history': st.session_state.chat_history})
-    answer = result['answer']
-    st.markdown(f"**💬 Answer:** {answer}")
-    st.session_state.chat_history.append((query, answer))
+    with st.spinner("🤖 Generating answer..."):
+        result = qa_chain(query)
+        answer = result["result"]
+        sources = result["source_documents"]
+
+        # Display Answer
+        st.markdown(f"**💬 Answer:** {answer}")
+        st.session_state.chat_history.append((query, answer))
+
+        # Display Sources
+        with st.expander("📚 Source Information"):
+            for i, doc in enumerate(sources, 1):
+                st.markdown(f"**Source {i}:** {doc.page_content}")
