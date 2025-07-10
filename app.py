@@ -1,10 +1,10 @@
 import streamlit as st
 import os
 import zipfile
-import traceback
 from langchain.embeddings import HuggingFaceEmbeddings
-from langchain_community.llms import HuggingFaceInferenceAPI
+from langchain_community.llms import HuggingFaceHub  # <-- not from langchain.llms
 from langchain.vectorstores import FAISS
+#from langchain.llms import HuggingFaceHub
 from langchain.chains import RetrievalQA
 from huggingface_hub import login
 
@@ -17,29 +17,32 @@ st.markdown("Ask me anything about ChEMBL-indexed biomedical data!")
 embedding = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
 
 # ================== CHECK & UNZIP IF NEEDED ==================
+
+# ========== Force unzip into index_pkl ==========
 if not all(os.path.exists(f) for f in ["index_pkl/index.faiss", "index_pkl/index.pkl"]):
     if os.path.exists("index_pkl.zip"):
-        st.write("📦 Extracting `index_pkl.zip`...")
+        st.write("📦 Extracting index_pkl.zip...")
         os.makedirs("index_pkl", exist_ok=True)
         with zipfile.ZipFile("index_pkl.zip", "r") as zip_ref:
             zip_ref.extractall("index_pkl")
-        st.success("✅ Extracted `index_pkl.zip`.")
+        st.success("✅ Extracted index_pkl.zip.")
     else:
-        st.error("❌ `index_pkl.zip` not found. Cannot continue.")
+        st.error("❌ index_pkl.zip not found. Cannot continue.")
         st.stop()
 
 # ========== Debug: Confirm extraction ==========
 try:
     st.write("📁 index_pkl/ contents:", os.listdir("index_pkl"))
 except Exception as e:
-    st.error(f"❌ Failed to read `index_pkl/`: {e}")
+    st.error(f"❌ Failed to read index_pkl/: {e}")
 
 # ================== LOAD VECTORSTORE ==================
+
 try:
     db = FAISS.load_local(
         folder_path="index_pkl",
         embeddings=embedding,
-        index_name="index",
+        index_name="index",  # ✅ Now matches: index.faiss + index.pkl
         allow_dangerous_deserialization=True
     )
     st.success("✅ FAISS vectorstore loaded.")
@@ -56,11 +59,17 @@ except Exception as e:
     print("Login error:", e)
 
 # ================== LLM ==================
-llm = HuggingFaceInferenceAPI(
-    api_key=st.secrets["HUGGINGFACE_TOKEN"],
-    model_name="google/flan-t5-large",
+
+from langchain_community.llms import HuggingFaceHub
+
+llm = HuggingFaceHub(
+    repo_id="google/flan-t5-large",
+    huggingfacehub_api_token=st.secrets["HUGGINGFACE_TOKEN"],
     model_kwargs={"temperature": 0.5, "max_length": 512}
 )
+
+
+
 
 # ================== RETRIEVAL CHAIN ==================
 qa_chain = RetrievalQA.from_chain_type(
@@ -72,6 +81,9 @@ qa_chain = RetrievalQA.from_chain_type(
 # ================== USER QUERY ==================
 query = st.text_input("🔎 Ask a biomedical question:")
 
+
+import traceback
+
 if query and isinstance(query, str) and query.strip() != "":
     try:
         with st.spinner("🤖 Generating answer..."):
@@ -80,4 +92,4 @@ if query and isinstance(query, str) and query.strip() != "":
             st.write(result)
     except Exception as e:
         st.error("❌ An error occurred while generating the answer.")
-        st.code(traceback.format_exc())
+        st.code(traceback.format_exc())  # 🔍 print full error trace
