@@ -18,12 +18,12 @@ embedding = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L
 # ================== CHECK & UNZIP IF NEEDED ==================
 if not all(os.path.exists(f) for f in ["index_pkl/index.faiss", "index_pkl/index_pkl.pkl"]):
     if os.path.exists("index_pkl.zip"):
-        st.write("📦 Extracting `index.zip`...")
+        st.write("📦 Extracting `index_pkl.zip`...")
         with zipfile.ZipFile("index_pkl.zip", "r") as zip_ref:
             zip_ref.extractall()
-        st.success("✅ Extracted `index.zip`.")
+        st.success("✅ Extracted `index_pkl.zip`.")
     else:
-        st.error("❌ `index.zip` not found. Cannot continue.")
+        st.error("❌ `index_pkl.zip` not found. Cannot continue.")
         st.stop()
 
 # ================== LOAD VECTORSTORE ==================
@@ -31,7 +31,8 @@ try:
     db = FAISS.load_local(
         folder_path="index_pkl",
         embeddings=embedding,
-        index_name="index_pkl.pkl"  # <- exact file name
+        index_name="index_pkl.pkl",
+        allow_dangerous_deserialization=True  # ⚠️ Use with caution!
     )
     st.success("✅ FAISS vectorstore loaded.")
 except Exception as e:
