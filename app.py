@@ -19,7 +19,7 @@ embedding = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L
 if not all(os.path.exists(f) for f in ["index_pkl/index.faiss", "index_pkl/index_pkl.pkl"]):
     if os.path.exists("index_pkl.zip"):
         st.write("📦 Extracting `index.zip`...")
-        with zipfile.ZipFile("index.zip", "r") as zip_ref:
+        with zipfile.ZipFile("index_pkl.zip", "r") as zip_ref:
             zip_ref.extractall()
         st.success("✅ Extracted `index.zip`.")
     else:
