@@ -27,6 +27,11 @@ if not all(os.path.exists(f) for f in ["index_pkl/index.faiss", "index_pkl/index
         st.stop()
 
 # ================== LOAD VECTORSTORE ==================
+st.write("📂 Working dir:", os.getcwd())
+st.write("📁 index_pkl/ contents:", os.listdir("index_pkl"))
+st.write("✅ index.faiss exists:", os.path.exists("index_pkl/index.faiss"))
+st.write("✅ index.pkl exists:", os.path.exists("index_pkl/index.pkl"))
+
 try:
     db = FAISS.load_local(
         folder_path="index_pkl",
