@@ -16,21 +16,26 @@ st.markdown("Ask me anything about ChEMBL-indexed biomedical data!")
 embedding = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
 # ================== CHECK & UNZIP IF NEEDED ==================
+
+# ========== Force unzip into `index_pkl` ==========
 if not all(os.path.exists(f) for f in ["index_pkl/index.faiss", "index_pkl/index.pkl"]):
     if os.path.exists("index_pkl.zip"):
         st.write("📦 Extracting `index_pkl.zip`...")
+        os.makedirs("index_pkl", exist_ok=True)
         with zipfile.ZipFile("index_pkl.zip", "r") as zip_ref:
-            zip_ref.extractall()
+            zip_ref.extractall("index_pkl")
         st.success("✅ Extracted `index_pkl.zip`.")
     else:
         st.error("❌ `index_pkl.zip` not found. Cannot continue.")
         st.stop()
 
+# ========== Debug: Confirm extraction ==========
+try:
+    st.write("📁 index_pkl/ contents:", os.listdir("index_pkl"))
+except Exception as e:
+    st.error(f"❌ Failed to read `index_pkl/`: {e}")
+
 # ================== LOAD VECTORSTORE ==================
-st.write("📂 Working dir:", os.getcwd())
-st.write("📁 index_pkl/ contents:", os.listdir("index_pkl"))
-st.write("✅ index.faiss exists:", os.path.exists("index_pkl/index.faiss"))
-st.write("✅ index.pkl exists:", os.path.exists("index_pkl/index.pkl"))
 
 try:
     db = FAISS.load_local(
