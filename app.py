@@ -1,6 +1,5 @@
 import streamlit as st
 import os
-import zipfile
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.llms import HuggingFaceHub
@@ -18,37 +17,26 @@ embedding = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L
 # ================== PATHS ==================
 index_dir = "index_pkl"
 index_faiss = os.path.join(index_dir, "index.faiss")
-index_pkl_old = os.path.join(index_dir, "index_pkl.pkl")
-index_pkl = os.path.join(index_dir, "index_pkl")  # <- Correct format
+index_pkl = os.path.join(index_dir, "index_pkl.pkl")
 
-# ================== UNZIP INDEX IF NEEDED ==================
-if not os.path.exists(index_faiss) or not os.path.exists(index_pkl_old):
-    if os.path.exists("index.zip"):
-        st.write("📦 Extracting `index.zip`...")
-        with zipfile.ZipFile("index.zip", "r") as zip_ref:
-            zip_ref.extractall(index_dir)
-        st.success("✅ Extracted `index.zip`.")
-    else:
-        st.error("❌ `index.zip` not found. Cannot continue.")
-        st.stop()
-
-# ================== RENAME `.pkl` TO REMOVE EXTENSION IF NEEDED ==================
-if os.path.exists(index_pkl_old) and not os.path.exists(index_pkl):
-    os.rename(index_pkl_old, index_pkl)
-    st.info("ℹ️ Renamed `index_pkl.pkl` to `index_pkl` for FAISS compatibility.")
-
-# ================== DEBUG FILE CHECK ==================
-st.write("📂 index_dir contents:", os.listdir(index_dir))
+# ================== VERIFY FILES EXIST ==================
+if not os.path.exists(index_faiss) or not os.path.exists(index_pkl):
+    st.error("❌ Required FAISS index files not found in `index_pkl/`.")
+    st.stop()
 
 # ================== LOAD VECTORSTORE ==================
 try:
-    db = FAISS.load_local(index_dir, embeddings=embedding, index_name="index_pkl")
+    db = FAISS.load_local(
+        folder_path=index_dir,
+        embeddings=embedding,
+        index_name="index_pkl.pkl"  # must match actual .pkl filename
+    )
     st.success("✅ FAISS vectorstore loaded.")
 except Exception as e:
     st.error(f"❌ Failed to load FAISS index: {e}")
     st.stop()
 
-# ================== LOGIN TO HF ==================
+# ================== LOGIN TO HUGGING FACE ==================
 try:
     HUGGINGFACE_TOKEN = st.secrets["HUGGINGFACE_TOKEN"]
     login(token=HUGGINGFACE_TOKEN)
