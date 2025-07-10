@@ -76,7 +76,7 @@ query = st.text_input("🔎 Ask a biomedical question:")
 if query and isinstance(query, str) and query.strip() != "":
     try:
         with st.spinner("🤖 Generating answer..."):
-            result = qa_chain.run(query)
+            result = qa_chain.invoke(query)  # <- fixed
             st.write("✅ Answer:")
             st.write(result)
     except Exception as e:
