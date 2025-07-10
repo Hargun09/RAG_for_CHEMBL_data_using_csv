@@ -73,12 +73,15 @@ qa_chain = RetrievalQA.from_chain_type(
 # ================== USER QUERY ==================
 query = st.text_input("🔎 Ask a biomedical question:")
 
+
+
 if query and isinstance(query, str) and query.strip() != "":
     try:
         with st.spinner("🤖 Generating answer..."):
-            result = qa_chain.invoke(query)  # <- fixed
+            result = qa_chain.invoke(query)
             st.write("✅ Answer:")
             st.write(result)
     except Exception as e:
         st.error("❌ An error occurred while generating the answer.")
-        st.exception(e)
+        st.code(traceback.format_exc())  # 🔍 print full error trace
+
