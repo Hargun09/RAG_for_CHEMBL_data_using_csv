@@ -74,6 +74,7 @@ qa_chain = RetrievalQA.from_chain_type(
 query = st.text_input("🔎 Ask a biomedical question:")
 
 
+import traceback
 
 if query and isinstance(query, str) and query.strip() != "":
     try:
