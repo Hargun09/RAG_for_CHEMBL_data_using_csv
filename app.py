@@ -13,7 +13,7 @@ st.title("🧪 ChEMBL Biomedical Q&A Bot")
 st.markdown("Ask me anything about ChEMBL-indexed biomedical data!")
 
 # ================== EMBEDDING MODEL ==================
-embedding = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+embedding = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L12-v2")
 
 # ================== CHECK & UNZIP IF NEEDED ==================
 
