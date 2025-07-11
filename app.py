@@ -48,9 +48,15 @@ except Exception as e:
     st.error(f"❌ Failed to load FAISS index:\n{e}")
     st.stop()
 
-# ========== LOAD LLM ==========
+# ========== LOAD LLM PIPELINE ==========
 try:
-    pipe = pipeline("text2text-generation", model="google/flan-t5-small", max_length=512)
+    pipe = pipeline(
+        "text2text-generation",
+        model="google/flan-t5-small",
+        max_length=128,              # ✅ smaller max_length for stability
+        temperature=0.3,
+        device=-1                    # ✅ force CPU (safe for Hugging Face Spaces)
+    )
     llm = HuggingFacePipeline(pipeline=pipe)
     st.success("✅ LLM loaded (flan-t5-small).")
 except Exception as e:
@@ -58,12 +64,13 @@ except Exception as e:
     st.exception(e)
     st.stop()
 
-# ========== QA CHAIN ==========
-retriever = db.as_retriever(search_kwargs={"k": 4})
+# ========== RETRIEVER & QA CHAIN ==========
+retriever = db.as_retriever(search_kwargs={"k": 3})  # ✅ fewer docs to avoid overload
+
 qa_chain = RetrievalQA.from_chain_type(
     llm=llm,
-    chain_type="stuff",
-    retriever=db.as_retriever()
+    chain_type="map_reduce",        # ✅ safer than "stuff" for small models
+    retriever=retriever
 )
 
 # ========== USER INPUT ==========
