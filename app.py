@@ -59,6 +59,7 @@ except Exception as e:
     st.stop()
 
 # ========== QA CHAIN ==========
+retriever = db.as_retriever(search_kwargs={"k": 4})
 qa_chain = RetrievalQA.from_chain_type(
     llm=llm,
     chain_type="stuff",
