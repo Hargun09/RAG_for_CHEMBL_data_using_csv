@@ -1,9 +1,10 @@
 streamlit
+pandas
+python-dotenv
+faiss-cpu
 transformers
 torch
-huggingface_hub
 sentence-transformers
 langchain
 langchain-community
-faiss-cpu
-pandas
+langchain-openai
