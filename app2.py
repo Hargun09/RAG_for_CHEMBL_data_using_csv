@@ -3,10 +3,10 @@ import os
 import zipfile
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain.chains import RetrievalQA
 from transformers import pipeline
 from langchain_community.llms import HuggingFacePipeline
 import traceback
+from langchain.chains.retrieval_qa.base import RetrievalQA
 
 # ========== PAGE CONFIG ==========
 st.set_page_config(page_title="🧪 ChEMBL QA Chatbot", page_icon="🧬")
