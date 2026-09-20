@@ -54,7 +54,7 @@ except Exception as e:
 # ========== LOAD LLM PIPELINE ==========
 try:
     pipe = pipeline(
-        "text2text-generation",
+        "text-generation",  # newer transformers releases folded text2text-generation into this
         model="google/flan-t5-small",
         max_length=128,
         temperature=0.3,
