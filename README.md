@@ -2,6 +2,11 @@
 
 This project builds a dataset connecting **drugs → targets → genes → diseases (MONDO)**, using data from the ChEMBL API and UniProt, and prepares it for retrieval (RAG) using a FAISS index.
 
+
+### ACCESS ON THE FOLLOWING LINK 
+https://ragforchembldatausingcsv-2ki3fnks6zkv4s2b9tvbah.streamlit.app/
+
+
 ## Pipeline Stages & Files
 
 ### 1. Drug & Indication Data (ChEMBL)
