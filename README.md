@@ -1,4 +1,4 @@
-# A chatbot for Female disorder
+# A chatbot for Female disorders
 
 This project builds a dataset connecting **drugs → targets → genes → diseases (MONDO)**, using data from the ChEMBL API and UniProt, and prepares it for retrieval (RAG) using a FAISS index.
 
