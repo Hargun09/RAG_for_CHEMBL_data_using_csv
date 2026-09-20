@@ -7,8 +7,8 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_community.llms import HuggingFacePipeline
 from langchain_core.prompts import ChatPromptTemplate
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain.chains import create_retrieval_chain
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough
 from transformers import pipeline
 
 # ========== PAGE CONFIG ==========
@@ -67,7 +67,7 @@ except Exception as e:
     st.exception(e)
     st.stop()
 
-# ========== RETRIEVER & RAG CHAIN (modern LCEL replacement for RetrievalQA) ==========
+# ========== RETRIEVER & RAG CHAIN (pure langchain_core, no langchain.chains needed) ==========
 retriever = db.as_retriever(search_kwargs={"k": 3})
 
 prompt = ChatPromptTemplate.from_template(
@@ -82,8 +82,17 @@ Question: {input}
 Answer:"""
 )
 
-document_chain = create_stuff_documents_chain(llm, prompt)
-retrieval_chain = create_retrieval_chain(retriever, document_chain)
+
+def format_docs(docs):
+    return "\n\n".join(d.page_content for d in docs)
+
+
+rag_chain = (
+    {"context": retriever | format_docs, "input": RunnablePassthrough()}
+    | prompt
+    | llm
+    | StrOutputParser()
+)
 
 # ========== USER INPUT ==========
 query = st.text_input("🔎 Ask a biomedical question:")
@@ -91,9 +100,9 @@ query = st.text_input("🔎 Ask a biomedical question:")
 if query:
     try:
         with st.spinner("🤖 Generating answer..."):
-            result = retrieval_chain.invoke({"input": query})
+            answer = rag_chain.invoke(query)
             st.success("✅ Answer:")
-            st.write(result["answer"])
+            st.write(answer)
     except Exception as e:
         st.error("❌ Error while generating the answer.")
         st.code(traceback.format_exc())
