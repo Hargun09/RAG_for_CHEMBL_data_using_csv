@@ -4,8 +4,7 @@ This project builds a dataset connecting **drugs → targets → genes → disea
 
 
 ### ACCESS ON THE FOLLOWING LINK 
-https://ragforchembldatausingcsv-2ki3fnks6zkv4s2b9tvbah.streamlit.app/
-
+https://ragforfemaledisorders.streamlit.app/
 
 ## Pipeline Stages & Files
 
