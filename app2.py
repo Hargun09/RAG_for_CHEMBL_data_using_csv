@@ -95,7 +95,11 @@ rag_chain = (
 )
 
 # ========== USER INPUT ==========
-query = st.text_input("🔎 Ask a biomedical question:")
+query = st.text_input(
+    "🔎 Ask a biomedical question:",
+    placeholder="e.g. What is the mechanism of action of imatinib?"
+)
+st.caption("Example: *Targets for Ovarian Cancer?*")
 
 if query:
     try:
