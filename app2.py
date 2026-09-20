@@ -1,12 +1,15 @@
 import streamlit as st
 import os
 import zipfile
+import traceback
+
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
-from transformers import pipeline
 from langchain_community.llms import HuggingFacePipeline
-import traceback
-from langchain.chains.retrieval_qa.base import RetrievalQA
+from langchain_core.prompts import ChatPromptTemplate
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains import create_retrieval_chain
+from transformers import pipeline
 
 # ========== PAGE CONFIG ==========
 st.set_page_config(page_title="🧪 ChEMBL QA Chatbot", page_icon="🧬")
@@ -53,9 +56,9 @@ try:
     pipe = pipeline(
         "text2text-generation",
         model="google/flan-t5-small",
-        max_length=128,              # ✅ smaller max_length for stability
+        max_length=128,
         temperature=0.3,
-        device=-1                    # ✅ force CPU (safe for Hugging Face Spaces)
+        device=-1  # force CPU (safe for Streamlit Cloud / HF Spaces)
     )
     llm = HuggingFacePipeline(pipeline=pipe)
     st.success("✅ LLM loaded (flan-t5-small).")
@@ -64,14 +67,23 @@ except Exception as e:
     st.exception(e)
     st.stop()
 
-# ========== RETRIEVER & QA CHAIN ==========
-retriever = db.as_retriever(search_kwargs={"k": 3})  # ✅ fewer docs to avoid overload
+# ========== RETRIEVER & RAG CHAIN (modern LCEL replacement for RetrievalQA) ==========
+retriever = db.as_retriever(search_kwargs={"k": 3})
 
-qa_chain = RetrievalQA.from_chain_type(
-    llm=llm,
-    chain_type="map_reduce",        # ✅ safer than "stuff" for small models
-    retriever=retriever
+prompt = ChatPromptTemplate.from_template(
+    """Answer the question using only the context below. If the answer
+isn't in the context, say you don't know.
+
+Context:
+{context}
+
+Question: {input}
+
+Answer:"""
 )
+
+document_chain = create_stuff_documents_chain(llm, prompt)
+retrieval_chain = create_retrieval_chain(retriever, document_chain)
 
 # ========== USER INPUT ==========
 query = st.text_input("🔎 Ask a biomedical question:")
@@ -79,9 +91,9 @@ query = st.text_input("🔎 Ask a biomedical question:")
 if query:
     try:
         with st.spinner("🤖 Generating answer..."):
-            result = qa_chain.run(query)
+            result = retrieval_chain.invoke({"input": query})
             st.success("✅ Answer:")
-            st.write(result)
+            st.write(result["answer"])
     except Exception as e:
         st.error("❌ Error while generating the answer.")
         st.code(traceback.format_exc())
